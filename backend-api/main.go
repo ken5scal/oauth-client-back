@@ -1,4 +1,4 @@
-package backend
+package main
 
 import (
 	"github.com/rs/zerolog"
@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"errors"
 )
 
 type AuthServer struct {
@@ -50,10 +49,9 @@ func init() {
 func main() {
 	server := http.Server{Addr: "localhost:9000"}
 	http.HandleFunc("/authorize", handleAuthorize)
-	server.ListenAndServe()
+	http.HandleFunc("/callback", callback)
+	log.Fatal().Err(server.ListenAndServe())
 }
-
-
 
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	endpoint := as.AuthorizationEndpoint
@@ -73,18 +71,22 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if !strings.Contains(as.AuthorizationEndpoint, "?") {
 		endpoint = endpoint + "?"
 	}
-	
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	http.Redirect(w, r, endpoint+params.Encode(), http.StatusFound)
+	log.Debug().Msg("redirect to AuthZ endpoint")
 }
 
-
-func callback(w http.ResponseWriter, r *http.Request) error {
+func callback(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
-	// check state
-	// if state is set, but has different value, then, some one is stealing the code.
-	if state != "" && state != q.Get("key") {
-		return errors.New("State is different")
-	}
-	return nil
+	//// check state
+	//// if state is set, but has different value, then, some one is stealing the code.
+	//if state != "" && state != q.Get("key") {
+	//	return errors.New("State is different")
+	//}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	log.Debug().Msg("Receiving a response from AuthZ endopoint")
+	w.Write([]byte(q.Get("code")))
 }
