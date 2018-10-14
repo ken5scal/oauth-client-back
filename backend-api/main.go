@@ -1,4 +1,4 @@
-package main
+package backend
 
 import (
 	"github.com/rs/zerolog"
@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"errors"
 )
 
 type AuthServer struct {
@@ -37,7 +38,8 @@ func init() {
 		ClientId:     "oauth-client-1",
 		ClientSecret: "oauth-client-secret-1",
 		RedirectURIs: []string{"http://localhost:9000/callback"},
-		Scopes:       []string{"email", "profile", "openid"},
+		Scopes:       []string{"foo", "bar"},
+		//Scopes:       []string{"email", "profile", "openid"},
 	}
 
 	zerolog.TimeFieldFormat = ""
@@ -51,10 +53,12 @@ func main() {
 	server.ListenAndServe()
 }
 
+
+
 func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	endpoint := as.AuthorizationEndpoint
 
-	state := uuid.NewV4().String()
+	state = uuid.NewV4().String()
 	nonce := "this is nonce"
 
 	params := url.Values{
@@ -69,5 +73,18 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if !strings.Contains(as.AuthorizationEndpoint, "?") {
 		endpoint = endpoint + "?"
 	}
+	
 	http.Redirect(w, r, endpoint+params.Encode(), http.StatusFound)
+}
+
+
+func callback(w http.ResponseWriter, r *http.Request) error {
+	q := r.URL.Query()
+
+	// check state
+	// if state is set, but has different value, then, some one is stealing the code.
+	if state != "" && state != q.Get("key") {
+		return errors.New("State is different")
+	}
+	return nil
 }
