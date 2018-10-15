@@ -109,11 +109,18 @@ export default {
   },
   methods: {
     apiAuthZ: function () {
-      fetch('http://localhost:9000/authorize').then(response => {
+      fetch('http://localhost:9000/authorize', {redirect: 'manual'}).then(response => {
         console.log(response)
         if (response.ok) {
           return response.blob()
         }
+
+        if (response.type === 'opaqueredirect') {
+          alert('will redirect manually!!')
+          location.href = response.url;
+          return
+        }
+
         throw new Error('network error')
       })
         .catch(error => {
