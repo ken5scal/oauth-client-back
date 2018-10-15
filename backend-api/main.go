@@ -72,9 +72,11 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		endpoint = endpoint + "?"
 	}
 
+	w.Header().Set("OAuth2Redirect", endpoint+params.Encode())
+	w.Header().Set("Access-Control-Allow-Headers", "OAuth2Redirect")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	http.Redirect(w, r, endpoint+params.Encode(), http.StatusFound)
-	log.Debug().Msg("redirect to AuthZ endpoint")
+	//w.WriteHeader(http.StatusForbidden)
+	http.Redirect(w, r, endpoint+params.Encode(), http.StatusMovedPermanently)
 }
 
 func callback(w http.ResponseWriter, r *http.Request) {
@@ -90,3 +92,11 @@ func callback(w http.ResponseWriter, r *http.Request) {
 	log.Debug().Msg("Receiving a response from AuthZ endopoint")
 	w.Write([]byte(q.Get("code")))
 }
+
+//type middleware func(next http.HandlerFunc) http.HandlerFunc
+//func ajaxRedirect(next http.HandlerFunc) http.HandlerFunc {
+//	return func(w http.ResponseWriter, r *http.Request) {
+//		http.NotFound()
+//		next.ServeHTTP(w, r)
+//	}
+//}
