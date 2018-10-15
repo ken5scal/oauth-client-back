@@ -85,21 +85,6 @@
 </template>
 
 <script>
-import axios from 'axios'
-axios.interceptors.response.use((response) => {
-  console.log(response.headers)
-  return response
-}, (error) => {
-  console.log('emergency')
-  console.log(error)
-  console.log(error.response)
-  console.log(error.response.data)
-  console.log(error.response.location)
-  if (error.response && error.response.data && error.response.data.location) {
-    window.location = error.response.data.location
-  }
-})
-
 export default {
   name: 'Authorize',
   data () {
@@ -110,30 +95,13 @@ export default {
   methods: {
     apiAuthZ: function () {
       fetch('http://localhost:9000/authorize', {
-        // mode: 'cors',
         redirect: 'manual'
       }).then(response => {
         console.log(response)
-        if (response.ok) {
-          return response.blob()
-        }
-
         if (response.type === 'opaqueredirect') {
-          console.log(response)
           location.href = response.url
-          return
         }
-
-        throw new Error('network error')
       })
-        .catch(error => {
-          console.log('hoge', error.message)
-        })
-      // axios.get('http://localhost:9000/authorize').then(response => {
-      //   console.log(response)
-      //   console.log(response.headers)
-      //   // window.location = 'https://login.microsoftonline.com'
-      // })
     }
   }
 }
