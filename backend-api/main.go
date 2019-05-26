@@ -10,6 +10,9 @@ import (
 	"strings"
 	"net/http/httputil"
 	"fmt"
+
+	"golang.org/x/oauth2"
+	"context"
 )
 
 type AuthServer struct {
@@ -32,7 +35,7 @@ var client *Client
 func init() {
 	as = &AuthServer{
 		AuthorizationEndpoint: "http://localhost:9001/authorize",
-		TokenEndpoint:         "http://localhost:9001/token",
+		TokenEndpoint:         "https://dev-991803.oktapreview.com/oauth2/default/v1/token",
 	}
 
 	client = &Client{
@@ -49,6 +52,24 @@ func init() {
 }
 
 func main() {
+	oauthConfig := oauth2.Config{
+		ClientID: "0oakuhp8brWUfRhGI0h7",
+		ClientSecret: "HNhG1RVIPkqMyZ6PcLR7Ktoxs0geaWoEETRSSy25",
+		RedirectURL: "http://localhost:3000/callback",
+		Endpoint: oauth2.Endpoint {TokenURL: "https://dev-991803.oktapreview.com/oauth2/default/v1/token"},
+	} //ConfigFromJSONの ConfigFromJSONが参考になる
+	code := "YCuiQAYpe-fU1KQOotJN"
+	token, err := oauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		log.Error().Err(err).Msg("hoge")
+	} else {
+		fmt.Println(token.AccessToken)
+		fmt.Println(token.Expiry)
+		fmt.Println(token.RefreshToken)
+		fmt.Println(token.TokenType)
+		fmt.Println(token)
+	}
+
 	server := http.Server{Addr: "localhost:9000"}
 	http.HandleFunc("/authorize", dumpRequest(handleAuthorize))
 	http.HandleFunc("/callback", callback)
@@ -100,9 +121,3 @@ func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
 		next.ServeHTTP(w, r)
 	}
 }
-//func ajaxRedirect(next http.HandlerFunc) http.HandlerFunc {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		http.NotFound()
-//		next.ServeHTTP(w, r)
-//	}
-//}
