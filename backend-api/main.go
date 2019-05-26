@@ -12,6 +12,7 @@ import (
 	"context"
 	//"gopkg.in/square/go-jose.v2/json"
 	"encoding/json"
+	"time"
 )
 
 func init() {
@@ -22,13 +23,13 @@ func init() {
 
 func main() {
 	server := http.Server{Addr: "localhost:9000"}
-	http.HandleFunc("/token", dumpRequest(handleTokenRequest))
+	http.HandleFunc("/token", dumpRequest(handleTokenRequest)) //limited to Okta for now
 	//http.HandleFunc("/token", handleTokenRequest)
 	log.Fatal().Err(server.ListenAndServe())
 }
 
 func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 	w.Header().Set("Access-Control-Allow-Headers","Content-Type")
 
 	if r.Method == http.MethodOptions {
@@ -44,39 +45,51 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 	} //ConfigFromJSONの ConfigFromJSONが参考になる
 
 	defer r.Body.Close()
-	//body, err := ioutil.ReadAll(r.Body)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//	w.Write([]byte(err.Error()))
-	//	return
-	//}
-
 	var b struct {
 		AuthzCode string `json:"authz_code"`
 	}
 
-	//if err = json.Unmarshal(body, &b); err != nil {
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
-		fmt.Fprintln(w, err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, err.Error())
 		return
 	}
 
 	token, err := oauthConfig.Exchange(context.Background(), b.AuthzCode)
 	if err != nil {
+		// TODO This needs to be improved
+		// https://tools.ietf.org/html/rfc6749#section-5.2
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, fmt.Sprintf("failed token request: %v", err.Error()))
 		return
 	}
-		fmt.Println(token.AccessToken)
-		fmt.Println(token.Expiry)
-		fmt.Println(token.RefreshToken)
-		fmt.Println(token.TokenType)
-		w.Header().Set("Content-Type", "application/json;charset=UTF-8")
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Pragma", "no-cache")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(token)
+
+	fmt.Println("Refresh Token: "+ token.RefreshToken)
+
+	tokenForFront := &struct {
+		AccessToken  string    `json:"access_token"`
+		TokenType    string    `json:"token_type"`
+		RefreshToken string    `json:"refresh_token,omitempty"`
+		Expiry       time.Time `json:"expiry"`
+		//TODO Implement for OIDC
+		//RefreshToken string    `json:"refresh_token"` //this is actually an option
+		//Scope       string `json:"scope"`
+		//IDToken     string `json:"id_token"`
+		//IdToken    string      `json:"id_token"`
+		//Scope      string      `json:"scope"`
+	}{
+		AccessToken: token.AccessToken,
+		TokenType: token.TokenType,
+		Expiry: token.Expiry,
+	}
+
+	// They are required in https://tools.ietf.org/html/rfc6749#section-5.1
+	// Assuming Front-Channel would be distributed by some kind of proxy
+	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(tokenForFront)
 }
 
 func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
