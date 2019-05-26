@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"net/http/httputil"
+	"fmt"
 )
 
 type AuthServer struct {
@@ -48,7 +50,7 @@ func init() {
 
 func main() {
 	server := http.Server{Addr: "localhost:9000"}
-	http.HandleFunc("/authorize", handleAuthorize)
+	http.HandleFunc("/authorize", dumpRequest(handleAuthorize))
 	http.HandleFunc("/callback", callback)
 	log.Fatal().Err(server.ListenAndServe())
 }
@@ -57,43 +59,47 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	endpoint := as.AuthorizationEndpoint
 
 	state = uuid.NewV4().String()
-	nonce := "this is nonce"
 
 	params := url.Values{
-		"client_id":     {client.ClientId},
+		// rfc6749 required params
 		"response_type": {"code"},
-		"scope":         {strings.Join(client.Scopes, " ")},
+		"client_id":     {client.ClientId},
 		"redirect_uri":  client.RedirectURIs,
+
+		// rfc6749 optional params
+		"scope":         {strings.Join(client.Scopes, " ")},
 		"state":         {state},
-		"nonce":         {nonce},
+
+		// openid params
+		//"nonce":         {"this is nonce"},
 	}
 
 	if !strings.Contains(as.AuthorizationEndpoint, "?") {
 		endpoint = endpoint + "?"
 	}
 
-	w.Header().Set("OAuth2Redirect", endpoint+params.Encode())
-	w.Header().Set("Access-Control-Allow-Headers", "OAuth2Redirect")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	//w.WriteHeader(http.StatusForbidden)
-	http.Redirect(w, r, endpoint+params.Encode(), http.StatusMovedPermanently)
+	http.Redirect(w, r, endpoint+params.Encode(), http.StatusFound)
 }
 
 func callback(w http.ResponseWriter, r *http.Request) {
+
 	q := r.URL.Query()
-
-	//// check state
-	//// if state is set, but has different value, then, some one is stealing the code.
-	//if state != "" && state != q.Get("key") {
-	//	return errors.New("State is different")
-	//}
-
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	log.Debug().Msg("Receiving a response from AuthZ endopoint")
 	w.Write([]byte(q.Get("code")))
 }
 
-//type middleware func(next http.HandlerFunc) http.HandlerFunc
+type middleware func(next http.HandlerFunc) http.HandlerFunc
+func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestDump, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(string(requestDump) + "\n")
+		next.ServeHTTP(w, r)
+	}
+}
 //func ajaxRedirect(next http.HandlerFunc) http.HandlerFunc {
 //	return func(w http.ResponseWriter, r *http.Request) {
 //		http.NotFound()
