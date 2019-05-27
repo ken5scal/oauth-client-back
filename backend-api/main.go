@@ -7,25 +7,62 @@ import (
 	"os"
 	"net/http/httputil"
 	"fmt"
-
 	"golang.org/x/oauth2"
 	"context"
-	//"gopkg.in/square/go-jose.v2/json"
 	"encoding/json"
 	"time"
+	"github.com/pelletier/go-toml"
+	"io/ioutil"
+	"strconv"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/gotestyourself/gotestyourself/env"
 )
+
+var oauthConfig oauth2.Config
+var port string
+var url string
 
 func init() {
 	zerolog.TimeFieldFormat = ""
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Logger = zerolog.New(os.Stdout).With().Caller().Logger()
+
+	tomlInBytes, err := ioutil.ReadFile("config.toml")
+	if err != nil {
+		log.Fatal().AnErr("Failed reading config file", err)
+	}
+
+	config, err := toml.LoadBytes(tomlInBytes)
+	if err != nil {
+		log.Fatal().AnErr("Failed parsing toml file", err)
+	}
+
+	// Maybe server config
+	port = "9000"//strconv.FormatInt(config.Get("env.dev.port").(int64), 10)
+	url = "localhost" //config.Get("env.dev.url").(string)
+
+	oauthConfig = oauth2.Config{
+		ClientID: config.Get("env.dev.client_id").(string), //"0oakuhp8brWUfRhGI0h7",
+		ClientSecret: os.Getenv("CLIENT_SECRET"),//"HNhG1RVIPkqMyZ6PcLR7Ktoxs0geaWoEETRSSy25",
+		RedirectURL: config.Get("env.dev.front_channel_url").(string), //"http://localhost:3000/callback",
+		Endpoint: oauth2.Endpoint {TokenURL: config.Get("env.dev.token_endpoint.okta").(string)},
+	} //ConfigFromJSONの ConfigFromJSONが参考になる
 }
 
 func main() {
-	server := http.Server{Addr: "localhost:9000"}
-	http.HandleFunc("/token", dumpRequest(handleTokenRequest)) //limited to Okta for now
-	//http.HandleFunc("/token", handleTokenRequest)
-	log.Fatal().Err(server.ListenAndServe())
+	allowedOrigins := handlers.AllowedOrigins([]string{"http://localhost:3000"})
+
+	r := mux.NewRouter()
+	r.HandleFunc("/token", dumpRequest(handleTokenRequest)).Methods(http.MethodPost, http.MethodOptions)
+	srv := &http.Server{
+		Handler: handlers.CORS(allowedOrigins)(r),
+		Addr:    url + ":" + port,
+	}
+
+	//server := http.Server{Addr: "localhost" + ":" + port}
+	//http.HandleFunc("/token", dumpRequest(handleTokenRequest)) //limited to Okta for now
+	log.Fatal().Err(srv.ListenAndServe())
 }
 
 func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
@@ -36,13 +73,6 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-
-	oauthConfig := oauth2.Config{
-		ClientID: "0oakuhp8brWUfRhGI0h7",
-		ClientSecret: "HNhG1RVIPkqMyZ6PcLR7Ktoxs0geaWoEETRSSy25",
-		RedirectURL: "http://localhost:3000/callback",
-		Endpoint: oauth2.Endpoint {TokenURL: "https://dev-991803.oktapreview.com/oauth2/default/v1/token"},
-	} //ConfigFromJSONの ConfigFromJSONが参考になる
 
 	defer r.Body.Close()
 	var b struct {
