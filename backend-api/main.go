@@ -86,8 +86,6 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 
 	token, err := oauthConfig.Exchange(context.Background(), b.AuthzCode)
 	if err != nil {
-		// TODO This needs to be improved
-		// https://tools.ietf.org/html/rfc6749#section-5.2
 		var tokenResponseError TokenResponseError
 		if json.Unmarshal([]byte(err.Error()), &tokenResponseError) != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -95,7 +93,7 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, fmt.Sprintf("failed token request: %v", err.Error()))
+		json.NewEncoder(w).Encode(tokenResponseError)
 		return
 	}
 
