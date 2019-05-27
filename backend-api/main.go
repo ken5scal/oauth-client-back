@@ -13,10 +13,8 @@ import (
 	"time"
 	"github.com/pelletier/go-toml"
 	"io/ioutil"
-	"strconv"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gotestyourself/gotestyourself/env"
 )
 
 var oauthConfig oauth2.Config
@@ -52,11 +50,12 @@ func init() {
 
 func main() {
 	allowedOrigins := handlers.AllowedOrigins([]string{"http://localhost:3000"})
+	allowedHeaders := handlers.AllowedHeaders([]string{"Content-Type"})
 
 	r := mux.NewRouter()
 	r.HandleFunc("/token", dumpRequest(handleTokenRequest)).Methods(http.MethodPost, http.MethodOptions)
 	srv := &http.Server{
-		Handler: handlers.CORS(allowedOrigins)(r),
+		Handler: handlers.CORS(allowedOrigins, allowedHeaders)(r),
 		Addr:    url + ":" + port,
 	}
 
@@ -66,8 +65,8 @@ func main() {
 }
 
 func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-	w.Header().Set("Access-Control-Allow-Headers","Content-Type")
+	//w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	//w.Header().Set("Access-Control-Allow-Headers","Content-Type")
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -89,6 +88,12 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// TODO This needs to be improved
 		// https://tools.ietf.org/html/rfc6749#section-5.2
+		var tokenResponseError TokenResponseError
+		if json.Unmarshal([]byte(err.Error()), &tokenResponseError) != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, "failed parsing error in token response")
+			return
+		}
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintln(w, fmt.Sprintf("failed token request: %v", err.Error()))
 		return
@@ -131,4 +136,11 @@ func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
 		fmt.Println(string(requestDump) + "\n")
 		next.ServeHTTP(w, r)
 	}
+}
+
+// TokenResponseError is https://tools.ietf.org/html/rfc6749#section-5.2
+type TokenResponseError struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
+	ErrorUri         string `json:"error_uri"`
 }
