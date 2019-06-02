@@ -1,0 +1,9 @@
+[env]
+[env.dev]
+port = 9000
+
+[env.dev.as.okta] # 'as' means Authorization Server
+callback = "http://localhost:3000/callback"
+client_id = "0oakuhp8brWUfRhGI0h7"
+#client_secret = "Use OS Env instead"
+token_endpoint = "https://dev-991803.oktapreview.com/oauth2/default/v1/token"
