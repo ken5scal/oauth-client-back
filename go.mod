@@ -2,6 +2,8 @@ module github.com/ken5scal/oauth-in-go
 
 require (
 	github.com/golang/protobuf v1.3.1 // indirect
+	github.com/gorilla/handlers v1.4.0
+	github.com/gorilla/mux v1.7.2
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/pelletier/go-toml v1.4.0
 	github.com/rs/zerolog v1.14.3

@@ -10,6 +10,7 @@ import (
 	"golang.org/x/oauth2"
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 	"github.com/pelletier/go-toml"
 	"io/ioutil"
@@ -19,7 +20,6 @@ import (
 
 var oauthConfig oauth2.Config
 var port string
-var url string
 
 func init() {
 	zerolog.TimeFieldFormat = ""
@@ -37,14 +37,13 @@ func init() {
 	}
 
 	// Maybe server config
-	port = "9000"//strconv.FormatInt(config.Get("env.dev.port").(int64), 10)
-	url = "localhost" //config.Get("env.dev.url").(string)
+	port = strconv.FormatInt(config.Get("env.dev.port").(int64), 10)
 
 	oauthConfig = oauth2.Config{
-		ClientID: config.Get("env.dev.client_id").(string), //"0oakuhp8brWUfRhGI0h7",
-		ClientSecret: os.Getenv("CLIENT_SECRET"),//"HNhG1RVIPkqMyZ6PcLR7Ktoxs0geaWoEETRSSy25",
-		RedirectURL: config.Get("env.dev.front_channel_url").(string), //"http://localhost:3000/callback",
-		Endpoint: oauth2.Endpoint {TokenURL: config.Get("env.dev.token_endpoint.okta").(string)},
+		ClientID: config.Get("env.dev.as.okta.client_id").(string),
+		ClientSecret: os.Getenv("CLIENT_SECRET"),
+		RedirectURL: config.Get("env.dev.as.okta.callback").(string),
+		Endpoint: oauth2.Endpoint {TokenURL: config.Get("env.dev.as.okta.token_endpoint").(string)},
 	} //ConfigFromJSONの ConfigFromJSONが参考になる
 }
 
@@ -56,7 +55,7 @@ func main() {
 	r.HandleFunc("/token", dumpRequest(handleTokenRequest)).Methods(http.MethodPost, http.MethodOptions)
 	srv := &http.Server{
 		Handler: handlers.CORS(allowedOrigins, allowedHeaders)(r),
-		Addr:    url + ":" + port,
+		Addr:    "localhost:" + port,
 	}
 
 	//server := http.Server{Addr: "localhost" + ":" + port}
@@ -84,16 +83,24 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(b.AuthzCode)
+	fmt.Println(oauthConfig.ClientID)
+	fmt.Println(oauthConfig.ClientSecret)
+	fmt.Println(oauthConfig.RedirectURL)
 	token, err := oauthConfig.Exchange(context.Background(), b.AuthzCode)
 	if err != nil {
-		var tokenResponseError TokenResponseError
-		if json.Unmarshal([]byte(err.Error()), &tokenResponseError) != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintln(w, "failed parsing error in token response")
-			return
-		}
+		//var tokenResponseError TokenResponseError
+		//if json.Unmarshal([]byte(err.Error()), &tokenResponseError) != nil {
+		//	w.WriteHeader(http.StatusInternalServerError)
+		//	fmt.Fprintln(w, "failed parsing error in token response")
+		//	return
+		//}
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(tokenResponseError)
+		//json.NewEncoder(w).Encode(tokenResponseError)
+
+		//oauth2: cannot fetch token: 401 Unauthorized
+		//Response: {"error":"invalid_client","error_description":"Client authentication failed. Either the client or the client credentials are invalid."}
+		fmt.Fprintln(w, err)
 		return
 	}
 
@@ -138,7 +145,7 @@ func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
 
 // TokenResponseError is https://tools.ietf.org/html/rfc6749#section-5.2
 type TokenResponseError struct {
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-	ErrorUri         string `json:"error_uri"`
+	Error            string `json:"error,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
+	ErrorUri         string `json:"error_uri,omitempty"`
 }
