@@ -75,6 +75,7 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var b struct {
 		AuthzCode string `json:"authz_code"`
+		CodeVerifier string `json:"code_verifier"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
@@ -83,11 +84,8 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(b.AuthzCode)
-	fmt.Println(oauthConfig.ClientID)
-	fmt.Println(oauthConfig.ClientSecret)
-	fmt.Println(oauthConfig.RedirectURL)
-	token, err := oauthConfig.Exchange(context.Background(), b.AuthzCode)
+	opt := oauth2.SetAuthURLParam("code_verifier", b.CodeVerifier)
+	token, err := oauthConfig.Exchange(context.Background(), b.AuthzCode, opt)
 	if err != nil {
 		//var tokenResponseError TokenResponseError
 		//if json.Unmarshal([]byte(err.Error()), &tokenResponseError) != nil {
