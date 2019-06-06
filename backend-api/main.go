@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"net/http"
@@ -34,6 +35,10 @@ func init() {
 	config, err := toml.LoadBytes(tomlInBytes)
 	if err != nil {
 		log.Fatal().AnErr("Failed parsing toml file", err)
+	}
+
+	if os.Getenv("CLIENT_SECRET") == "" {
+		log.Fatal().AnErr("CLIENT_SECRET is missing", errors.New("Missing client secret"))
 	}
 
 	// Maybe server config
