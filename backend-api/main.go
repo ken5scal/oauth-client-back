@@ -64,9 +64,6 @@ func main() {
 }
 
 func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
-	//w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-	//w.Header().Set("Access-Control-Allow-Headers","Content-Type")
-
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
@@ -95,14 +92,11 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 		//}
 		w.WriteHeader(http.StatusBadRequest)
 		//json.NewEncoder(w).Encode(tokenResponseError)
-
 		//oauth2: cannot fetch token: 401 Unauthorized
 		//Response: {"error":"invalid_client","error_description":"Client authentication failed. Either the client or the client credentials are invalid."}
 		fmt.Fprintln(w, err)
 		return
 	}
-
-	fmt.Println("Refresh Token: "+ token.RefreshToken)
 
 	tokenForFront := &struct {
 		AccessToken  string    `json:"access_token"`
@@ -137,7 +131,10 @@ func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
 			fmt.Println(err)
 		}
 		fmt.Println(string(requestDump) + "\n")
+
 		next.ServeHTTP(w, r)
+
+		fmt.Println(w)
 	}
 }
 
