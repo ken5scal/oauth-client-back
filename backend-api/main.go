@@ -1,26 +1,29 @@
 package main
 
 import (
-	"errors"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"net/http"
-	"os"
-	"net/http/httputil"
-	"fmt"
-	"golang.org/x/oauth2"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"os"
 	"strconv"
 	"time"
-	"github.com/pelletier/go-toml"
-	"io/ioutil"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/pelletier/go-toml"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/oauth2"
 )
 
-var oauthConfig oauth2.Config
-var port string
+var (
+	oauthConfig oauth2.Config
+	port        string
+)
 
 func init() {
 	zerolog.TimeFieldFormat = ""
@@ -45,10 +48,10 @@ func init() {
 	port = strconv.FormatInt(config.Get("env.dev.port").(int64), 10)
 
 	oauthConfig = oauth2.Config{
-		ClientID: config.Get("env.dev.as.okta.client_id").(string),
+		ClientID:     config.Get("env.dev.as.okta.client_id").(string),
 		ClientSecret: os.Getenv("CLIENT_SECRET"),
-		RedirectURL: config.Get("env.dev.as.okta.callback").(string),
-		Endpoint: oauth2.Endpoint {TokenURL: config.Get("env.dev.as.okta.token_endpoint").(string)},
+		RedirectURL:  config.Get("env.dev.as.okta.callback").(string),
+		Endpoint:     oauth2.Endpoint{TokenURL: config.Get("env.dev.as.okta.token_endpoint").(string)},
 	} //ConfigFromJSONの ConfigFromJSONが参考になる
 }
 
@@ -76,7 +79,7 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 	var b struct {
-		AuthzCode string `json:"authz_code"`
+		AuthzCode    string `json:"authz_code"`
 		CodeVerifier string `json:"code_verifier"`
 	}
 
@@ -116,8 +119,8 @@ func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
 		//Scope      string      `json:"scope"`
 	}{
 		AccessToken: token.AccessToken,
-		TokenType: token.TokenType,
-		Expiry: token.Expiry,
+		TokenType:   token.TokenType,
+		Expiry:      token.Expiry,
 	}
 
 	// They are required in https://tools.ietf.org/html/rfc6749#section-5.1
@@ -147,5 +150,5 @@ func dumpRequest(next http.HandlerFunc) http.HandlerFunc {
 type TokenResponseError struct {
 	Error            string `json:"error,omitempty"`
 	ErrorDescription string `json:"error_description,omitempty"`
-	ErrorUri         string `json:"error_uri,omitempty"`
+	ErrorURI         string `json:"error_uri,omitempty"`
 }
