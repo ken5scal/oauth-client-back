@@ -32,16 +32,16 @@ func init() {
 
 	tomlInBytes, err := ioutil.ReadFile("config.toml")
 	if err != nil {
-		log.Fatal().AnErr("Failed reading config file", err)
+		log.Fatal().AnErr("Failed reading config file", err).Msg("")
 	}
 
 	config, err := toml.LoadBytes(tomlInBytes)
 	if err != nil {
-		log.Fatal().AnErr("Failed parsing toml file", err)
+		log.Fatal().AnErr("Failed parsing toml file", err).Msg("")
 	}
 
 	if os.Getenv("CLIENT_SECRET") == "" {
-		log.Fatal().AnErr("CLIENT_SECRET is missing", errors.New("Missing client secret"))
+		log.Fatal().AnErr("CLIENT_SECRET is missing", errors.New("Missing client secret")).Msg("")
 	}
 
 	// Maybe server config
@@ -68,7 +68,7 @@ func main() {
 
 	//server := http.Server{Addr: "localhost" + ":" + port}
 	//http.HandleFunc("/token", dumpRequest(handleTokenRequest)) //limited to Okta for now
-	log.Fatal().Err(srv.ListenAndServe())
+	log.Fatal().Err(srv.ListenAndServe()).Msg("")
 }
 
 func handleTokenRequest(w http.ResponseWriter, r *http.Request) {
